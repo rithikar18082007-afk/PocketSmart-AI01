@@ -1,0 +1,6 @@
+{
+  "name": "PocketSmart AI",
+  "description": "An AI-powered personal finance assistant that helps users track expenses, manage budgets, understand spending patterns, and make informed financial decisions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

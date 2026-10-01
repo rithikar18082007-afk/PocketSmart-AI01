@@ -1,0 +1,189 @@
+// PocketSmart AI - Normalized PostgreSQL Prisma Schema
+// Production database schema for Users, Accounts, Categories, Transactions,
+// Budgets, Goals, RecurringTransactions, and AIInsights.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum AccountType {
+  CHECKING
+  SAVINGS
+  CREDIT_CARD
+  INVESTMENT
+  WALLET
+}
+
+enum Frequency {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum InsightType {
+  SPENDING_INCREASE
+  BUDGET_WARNING
+  RECURRING_ALERT
+  SAVINGS_RATE
+  CATEGORY_CONCENTRATION
+  SAVING_OPPORTUNITY
+}
+
+model User {
+  id                    String                 @id @default(cuid())
+  name                  String
+  email                 String                 @unique
+  passwordHash          String
+  currency              String                 @default("INR")
+  isDemo                Boolean                @default(false)
+  notificationsEnabled  Boolean                @default(true)
+  budgetAlertsThreshold Int                    @default(80)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  accounts              Account[]
+  categories            Category[]
+  transactions          Transaction[]
+  budgets               Budget[]
+  goals                 Goal[]
+  recurringTransactions RecurringTransaction[]
+  aiInsights            AIInsight[]
+
+  @@index([email])
+}
+
+model Account {
+  id           String        @id @default(cuid())
+  userId       String
+  name         String
+  type         AccountType   @default(SAVINGS)
+  balance      Decimal       @db.Decimal(14, 2)
+  currency     String        @default("INR")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId])
+}
+
+model Category {
+  id                    String                 @id @default(cuid())
+  userId                String
+  name                  String
+  type                  TransactionType
+  icon                  String                 @default("tag")
+  color                 String                 @default("#0f172a")
+  createdAt             DateTime               @default(now())
+
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions          Transaction[]
+  budgets               Budget[]
+  recurringTransactions RecurringTransaction[]
+
+  @@unique([userId, name, type])
+  @@index([userId])
+}
+
+model Transaction {
+  id            String          @id @default(cuid())
+  userId        String
+  accountId     String
+  categoryId    String
+  type          TransactionType
+  amount        Decimal         @db.Decimal(14, 2)
+  description   String
+  date          DateTime
+  paymentMethod String          @default("UPI")
+  notes         String?
+  isDemo        Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account       Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category      Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([userId, date(sort: Desc)])
+  @@index([userId, categoryId])
+  @@index([userId, type])
+}
+
+model Budget {
+  id         String   @id @default(cuid())
+  userId     String
+  categoryId String
+  amount     Decimal  @db.Decimal(14, 2)
+  month      Int
+  year       Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId, month, year])
+  @@index([userId, year, month])
+}
+
+model Goal {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  category      String   @default("Emergency fund")
+  targetAmount  Decimal  @db.Decimal(14, 2)
+  currentAmount Decimal  @db.Decimal(14, 2)
+  targetDate    DateTime
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RecurringTransaction {
+  id          String    @id @default(cuid())
+  userId      String
+  categoryId  String
+  description String
+  amount      Decimal   @db.Decimal(14, 2)
+  frequency   Frequency @default(MONTHLY)
+  nextDate    DateTime
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([userId, active])
+}
+
+model AIInsight {
+  id          String      @id @default(cuid())
+  userId      String
+  type        InsightType
+  title       String
+  description String
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+  readAt      DateTime?
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+}
